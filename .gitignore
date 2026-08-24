@@ -1,0 +1,16 @@
+# Reference material — derivable by extracting the committed zips
+_ref/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store

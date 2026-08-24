@@ -1,0 +1,1198 @@
+{
+  "contract_version": 1,
+  "components": {
+    "crModeChoice": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "modes"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "value",
+                "label"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "enum": [
+                    "single",
+                    "bulk"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": "Create Change Request",
+        "subtitle": "How would you like to proceed?",
+        "modes": [
+          {
+            "value": "single",
+            "label": "Single Change Request",
+            "description": "Raise one change request against a platform and target system.",
+            "enabled": true
+          },
+          {
+            "value": "bulk",
+            "label": "Bulk Change Request",
+            "description": "Raise multiple change requests from a single upload.",
+            "enabled": false
+          }
+        ],
+        "meta": null
+      }
+    },
+    "featureComingSoon": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "back_label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": "Back"
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": "Bulk Change Request",
+        "message": "Feature available soon.",
+        "back_label": "Back to Single Change Request",
+        "meta": null
+      }
+    },
+    "crIntakeForm": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "platforms"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Blue helper line under the first row"
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_systems": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Prefilled values, e.g. on re-entry after a validation error",
+            "additionalProperties": false,
+            "properties": {
+              "platform": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "target_system": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "jira_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "iris_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason_for_change": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description_of_change": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "errors": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Field-level server-side validation errors, keyed by field name",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "iris_enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": "Create Change Request",
+        "subtitle": "To GET STARTED, please fill in the following information.",
+        "hint": "Please fill the Reason For Change and Description for change Or Jira ID/ IRIS ID to fetch the information",
+        "platforms": [
+          "HMD",
+          "TIME",
+          "Back to basics"
+        ],
+        "target_systems": null,
+        "values": null,
+        "errors": null,
+        "iris_enabled": false,
+        "meta": null
+      }
+    },
+    "templateOrCrPicker": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "template_label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": "Template ID"
+          },
+          "template_optional": {
+            "type": "boolean",
+            "default": true
+          },
+          "template_options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reference_label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": "Reference Change Request ID"
+          },
+          "reference_options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "badge": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Optional right-aligned pill, e.g. platform name"
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "details": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "tone": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "neutral",
+                          "positive",
+                          "negative",
+                          null
+                        ]
+                      },
+                      "wide": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Render full-width (long free text)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selected_template": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selected_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": "To proceed ahead,",
+        "subtitle": "Please fill in the following information.",
+        "template_label": "Template ID",
+        "template_optional": true,
+        "template_options": [
+          "Temp45678",
+          "Temp45679"
+        ],
+        "reference_label": "Reference Change Request ID",
+        "reference_options": [
+          {
+            "label": "CR ID 654678",
+            "value": "654678",
+            "badge": "Galaxy",
+            "details": [
+              {
+                "label": "Similarity score",
+                "value": "0.912",
+                "tone": "neutral"
+              },
+              {
+                "label": "Platform",
+                "value": "Galaxy",
+                "tone": "positive"
+              },
+              {
+                "label": "Target System",
+                "value": "PJS 0021237113",
+                "tone": "neutral"
+              },
+              {
+                "label": "Change Cycle",
+                "value": "GAI_4_Tier_ECC_Landscape"
+              },
+              {
+                "label": "Description",
+                "value": "Config change to the treasury posting rules.",
+                "wide": true
+              }
+            ]
+          }
+        ],
+        "selected_template": null,
+        "selected_reference": null,
+        "meta": null
+      }
+    },
+    "cycleIdPicker": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "message",
+          "options"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "badge": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Optional right-aligned pill, e.g. platform name"
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "details": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "tone": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "neutral",
+                          "positive",
+                          "negative",
+                          null
+                        ]
+                      },
+                      "wide": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Render full-width (long free text)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "draft_cycle_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "keep_current_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "message": "I've analyzed your Platform, Target System, and Change details. Please select among the following deployment cycles available for this project.",
+        "options": [
+          {
+            "label": "GAI_4_Tier_ECC_Landscape",
+            "value": "0000012345"
+          }
+        ],
+        "draft_cycle_id": null,
+        "keep_current_label": null,
+        "meta": null
+      }
+    },
+    "draftReview": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "sections"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "fields"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "label",
+                      "value"
+                    ],
+                    "additionalProperties": true,
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "EDL key, e.g. zzfld00000v_cus"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Display value, exactly as it will be submitted"
+                      },
+                      "editable": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "lock_type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "system_readonly | compliance_locked | session_locked"
+                      },
+                      "field_type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "text",
+                          "boolean",
+                          "dropdown",
+                          null
+                        ]
+                      },
+                      "allowed_values": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "For dropdown/boolean fields \u2014 the values SolMan will accept"
+                      },
+                      "section": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "lock_reason": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Human-readable reason the field is locked"
+                      },
+                      "empty": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "True when no value will be submitted"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "confirm_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "e.g. 'These inputs will raise a change request for CR ID 45678987.'"
+          },
+          "question_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": "Are you sure to proceed?"
+          },
+          "notices": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "badge": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Optional right-aligned pill, e.g. platform name"
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "details": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "tone": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "neutral",
+                          "positive",
+                          "negative",
+                          null
+                        ]
+                      },
+                      "wide": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Render full-width (long free text)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": "Please review the Change Request Draft and update the information if required.",
+        "subtitle": "By clicking on proceed, your change request will be raised successfully.",
+        "sections": [
+          {
+            "name": "Details",
+            "fields": [
+              {
+                "key": "zzfld00000v_cus",
+                "label": "Risk",
+                "value": "Low",
+                "empty": false,
+                "editable": true,
+                "lock_type": null,
+                "field_type": "boolean",
+                "section": "Testing Requirements",
+                "allowed_values": [
+                  "Yes",
+                  "No"
+                ]
+              }
+            ]
+          }
+        ],
+        "confirm_text": "These inputs will raise a change request for CR ID 45678987.",
+        "question_text": "Are you sure to proceed?",
+        "notices": null,
+        "actions": [
+          {
+            "label": "Reject",
+            "value": "reject"
+          },
+          {
+            "label": "Submit",
+            "value": "approve"
+          },
+          {
+            "label": "Submit for Approval",
+            "value": "submit_for_approval"
+          }
+        ],
+        "meta": null
+      }
+    },
+    "fieldPrompt": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "badge": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Optional right-aligned pill, e.g. platform name"
+                },
+                "disabled": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "details": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "tone": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "neutral",
+                          "positive",
+                          "negative",
+                          null
+                        ]
+                      },
+                      "wide": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Render full-width (long free text)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "allow_free_text": {
+            "type": "boolean",
+            "default": true
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "title": null,
+        "message": "Which platform is this change for?",
+        "options": [
+          {
+            "label": "HMD",
+            "value": "HMD"
+          }
+        ],
+        "allow_free_text": true,
+        "placeholder": "Type your reply\u2026",
+        "meta": null
+      }
+    },
+    "submissionResult": {
+      "props_schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "cr_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Display string, e.g. '11th Feb, 26  21:12 pm'"
+              },
+              "processing_time": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "e.g. '30 sec'"
+              },
+              "tokens": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Pre-formatted, e.g. '$0.0023'"
+              }
+            }
+          }
+        }
+      },
+      "example": {
+        "status": "success",
+        "message": "Successfully submitted.",
+        "cr_id": "45678987",
+        "meta": null
+      }
+    }
+  }
+}
