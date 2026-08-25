@@ -135,7 +135,9 @@ AGUI_BACKEND_URL=http://localhost:8084/copilotkit
 const handover = join(SRC, "docs", "HANDOVER.md");
 if (existsSync(handover)) {
   cpSync(handover, join(OUT, "README.md"));
-  rmSync(join(OUT, "docs"), { recursive: true, force: true });
+  // HANDOVER became the README; ARCHITECTURE stays as a doc because it is a
+  // reference the next team reads alongside the code, not a getting-started.
+  rmSync(join(OUT, "docs", "HANDOVER.md"), { force: true });
 }
 
 // ── Sanity checks ────────────────────────────────────────────────────────────

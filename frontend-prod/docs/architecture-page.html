@@ -1,0 +1,798 @@
+<title>CR/CO Frontend Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #fbfcfd;
+    --surface: #ffffff;
+    --surface-sunk: #f3f5f8;
+    --ink: #12161c;
+    --ink-2: #38404d;
+    --ink-3: #5a6472;
+    --ink-4: #8b95a3;
+    --line: #dfe4ea;
+    --line-soft: #eaeef3;
+    --accent: #2a5db0;
+    --accent-soft: #eaf0fa;
+    --warn: #a8630b;
+    --warn-soft: #fbf1e2;
+    --good: #1c6b47;
+    --good-soft: #e7f2ec;
+    --shadow: 0 1px 2px rgba(18, 22, 28, .04), 0 8px 24px rgba(18, 22, 28, .05);
+
+    --measure: 68ch;
+    --wide: 1180px;
+
+    --f-display: "Newsreader", Georgia, serif;
+    --f-body: "IBM Plex Sans", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e1218;
+      --surface: #151a22;
+      --surface-sunk: #10151c;
+      --ink: #e7ebf1;
+      --ink-2: #bcc5d1;
+      --ink-3: #8d97a5;
+      --ink-4: #667080;
+      --line: #262d38;
+      --line-soft: #1c222b;
+      --accent: #82aae9;
+      --accent-soft: #16243a;
+      --warn: #d9a05a;
+      --warn-soft: #2a2015;
+      --good: #6bbf95;
+      --good-soft: #14251d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e1218;
+    --surface: #151a22;
+    --surface-sunk: #10151c;
+    --ink: #e7ebf1;
+    --ink-2: #bcc5d1;
+    --ink-3: #8d97a5;
+    --ink-4: #667080;
+    --line: #262d38;
+    --line-soft: #1c222b;
+    --accent: #82aae9;
+    --accent-soft: #16243a;
+    --warn: #d9a05a;
+    --warn-soft: #2a2015;
+    --good: #6bbf95;
+    --good-soft: #14251d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 56px;
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 0 32px 120px;
+  }
+  @media (max-width: 900px) {
+    .page { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 20px 80px; }
+    .toc { position: static !important; border-right: 0 !important; padding: 24px 0 !important; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+    .toc ol { columns: 2; }
+  }
+
+  /* ── Contents rail ─────────────────────────────────────────────── */
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 56px 20px 40px 0;
+    border-right: 1px solid var(--line-soft);
+  }
+  .toc-label {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin: 0 0 14px;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .toc a {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 6px;
+    padding: 5px 8px 5px 0;
+    font-size: 13.5px;
+    line-height: 1.35;
+    color: var(--ink-3);
+    text-decoration: none;
+    border-radius: 5px;
+  }
+  .toc a:hover { color: var(--accent); background: var(--accent-soft); padding-left: 8px; }
+  .toc a b { font-family: var(--f-mono); font-weight: 400; font-size: 11px; color: var(--ink-4); padding-top: 2px; }
+  .toc a:hover b { color: var(--accent); }
+
+  /* ── Masthead ──────────────────────────────────────────────────── */
+  header.mast { padding: 64px 0 8px; max-width: var(--measure); }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 500;
+    font-size: clamp(38px, 5.2vw, 58px);
+    line-height: 1.06;
+    letter-spacing: -.022em;
+    color: var(--ink);
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst { font-size: 18.5px; line-height: 1.6; color: var(--ink-3); margin: 0; }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 28px 0 0; padding: 0 0 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .meta span {
+    font-family: var(--f-mono); font-size: 11.5px;
+    padding: 4px 9px; border-radius: 5px;
+    background: var(--surface-sunk); color: var(--ink-3);
+    border: 1px solid var(--line-soft);
+  }
+
+  /* ── Sections ──────────────────────────────────────────────────── */
+  section { padding-top: 56px; scroll-margin-top: 20px; }
+  section > *:not(.bleed):not(.diagram) { max-width: var(--measure); }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 500; font-size: 30px; line-height: 1.2;
+    letter-spacing: -.015em; color: var(--ink);
+    margin: 0 0 18px; text-wrap: balance;
+    display: grid; grid-template-columns: 40px 1fr; align-items: baseline;
+  }
+  h2 i {
+    font-family: var(--f-mono); font-style: normal;
+    font-size: 12px; color: var(--accent); letter-spacing: .04em;
+  }
+  h3 {
+    font-family: var(--f-body); font-weight: 600; font-size: 15px;
+    letter-spacing: .002em; color: var(--ink);
+    margin: 34px 0 10px;
+  }
+  p { margin: 0 0 16px; }
+  strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); }
+
+  ul, ol.body { margin: 0 0 16px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--ink-4); }
+
+  code {
+    font-family: var(--f-mono); font-size: .875em;
+    background: var(--surface-sunk); border: 1px solid var(--line-soft);
+    padding: 1px 5px; border-radius: 4px; color: var(--ink);
+  }
+  pre {
+    font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6;
+    background: var(--surface-sunk); border: 1px solid var(--line);
+    border-radius: 9px; padding: 16px 18px; margin: 0 0 20px;
+    overflow-x: auto; color: var(--ink-2);
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+  .bleed { max-width: 100%; }
+
+  /* ── Callout ───────────────────────────────────────────────────── */
+  .note {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    background: var(--surface); border-radius: 0 9px 9px 0;
+    padding: 16px 20px; margin: 0 0 20px; box-shadow: var(--shadow);
+  }
+  .note.warn { border-left-color: var(--warn); }
+  .note-tag {
+    font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .11em;
+    text-transform: uppercase; color: var(--accent);
+    display: block; margin-bottom: 7px;
+  }
+  .note.warn .note-tag { color: var(--warn); }
+  .note p:last-child { margin-bottom: 0; }
+
+  /* ── Tables ────────────────────────────────────────────────────── */
+  .tw { overflow-x: auto; margin: 0 0 22px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th {
+    text-align: left; font-family: var(--f-mono); font-weight: 400;
+    font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-4); padding: 0 14px 9px 0;
+    border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; color: var(--ink-2); }
+  td:first-child { color: var(--ink); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* ── Layer chips ───────────────────────────────────────────────── */
+  .chip {
+    display: inline-block; font-family: var(--f-mono); font-size: 10.5px;
+    padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+  }
+  .chip.keep { background: var(--good-soft); color: var(--good); }
+  .chip.drop { background: var(--warn-soft); color: var(--warn); }
+
+  /* ── Flow diagram ──────────────────────────────────────────────── */
+  .diagram {
+    max-width: 100%; margin: 0 0 24px; padding: 26px 24px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 11px; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  .flow { display: flex; flex-direction: column; gap: 0; min-width: 520px; }
+  .step { display: grid; grid-template-columns: 132px 1fr; gap: 18px; align-items: start; }
+  .side {
+    font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .06em;
+    color: var(--ink-4); text-align: right; padding-top: 13px; text-transform: uppercase;
+  }
+  .node {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 14px; background: var(--surface-sunk);
+  }
+  .node b {
+    display: block; font-family: var(--f-mono); font-size: 12.5px;
+    color: var(--ink); font-weight: 500;
+  }
+  .node span { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 3px; }
+  .node.hi { border-color: var(--accent); background: var(--accent-soft); }
+  .node.hi b { color: var(--accent); }
+  .arrow {
+    grid-column: 2; height: 22px; margin-left: 20px;
+    border-left: 1.5px solid var(--line); position: relative;
+  }
+  .arrow::after {
+    content: ""; position: absolute; bottom: -1px; left: -4.5px;
+    width: 8px; height: 8px; border-right: 1.5px solid var(--line);
+    border-bottom: 1.5px solid var(--line); transform: rotate(45deg);
+  }
+  .arrow em {
+    position: absolute; left: 14px; top: 1px; font-style: normal;
+    font-family: var(--f-mono); font-size: 11px; color: var(--ink-4); white-space: nowrap;
+  }
+
+  footer {
+    margin-top: 72px; padding-top: 26px; border-top: 1px solid var(--line);
+    max-width: var(--measure); font-size: 13.5px; color: var(--ink-4);
+  }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <nav class="toc">
+    <p class="toc-label">Contents</p>
+    <ol>
+      <li><a href="#idea"><b>01</b><span>The one idea</span></a></li>
+      <li><a href="#flow"><b>02</b><span>End to end</span></a></li>
+      <li><a href="#layers"><b>03</b><span>Layers</span></a></li>
+      <li><a href="#props"><b>04</b><span>Where props come from</span></a></li>
+      <li><a href="#resolution"><b>05</b><span>Resolution</span></a></li>
+      <li><a href="#registry"><b>06</b><span>Registry &amp; host</span></a></li>
+      <li><a href="#protocol"><b>07</b><span>Protocol traps</span></a></li>
+      <li><a href="#transport"><b>08</b><span>The transport</span></a></li>
+      <li><a href="#cards"><b>09</b><span>Inside a card</span></a></li>
+      <li><a href="#response"><b>10</b><span>The response path</span></a></li>
+      <li><a href="#styling"><b>11</b><span>Styling</span></a></li>
+      <li><a href="#adding"><b>12</b><span>Adding a component</span></a></li>
+      <li><a href="#files"><b>13</b><span>File map</span></a></li>
+      <li><a href="#seams"><b>14</b><span>Where the seams are</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="mast">
+      <p class="eyebrow">SolMan CR/CO · Agent-driven UI</p>
+      <h1>How the frontend is wired</h1>
+      <p class="standfirst">
+        How a card gets on screen, where its props come from, and what happens when
+        someone answers. Every claim points at a file.
+      </p>
+      <div class="meta">
+        <span>Next 16 · React 19 · Tailwind v4</span>
+        <span>8 / 8 contract components</span>
+        <span>AG-UI direct</span>
+        <span>Contract v1</span>
+      </div>
+    </header>
+
+    <!-- 01 ───────────────────────────────────────────────────────── -->
+    <section id="idea">
+      <h2><i>01</i>The one idea everything follows</h2>
+      <p>
+        The agent never ships UI. It <strong>names</strong> one of eight registered React
+        components and supplies JSON props. A name outside the registry cannot render.
+      </p>
+      <pre><code>{ "version": 1, "name": "draftReview", "props": { … } }</code></pre>
+      <p>That envelope is the entire interface between the graph and this app. Three consequences shape every file below.</p>
+      <ul>
+        <li><strong>The frontend never decides what to show.</strong> No inspecting props to guess which screen this is — the agent named it.</li>
+        <li><strong>The frontend never invents content.</strong> Labels, options, ordering, even which option counts as “positive” — all agent-supplied.</li>
+        <li><strong>A card is a renderer.</strong> Props in, one response out. No fetching for its own content, no routing, no store.</li>
+      </ul>
+    </section>
+
+    <!-- 02 ───────────────────────────────────────────────────────── -->
+    <section id="flow">
+      <h2><i>02</i>End to end, in one pass</h2>
+      <p>A single turn, from a blocked graph node to the screen and back.</p>
+
+      <div class="diagram">
+        <div class="flow">
+          <div class="step">
+            <div class="side">agui_server.py</div>
+            <div class="node"><b>interrupt(ui_component)</b><span>a HITL node blocks, carrying the envelope</span></div>
+          </div>
+          <div class="arrow"><em>AG-UI over SSE</em></div>
+
+          <div class="step">
+            <div class="side">app/api/agent</div>
+            <div class="node"><b>route.ts</b><span>same-origin proxy — no CORS, credentials stay server-side</span></div>
+          </div>
+          <div class="arrow"></div>
+
+          <div class="step">
+            <div class="side">agent-ui</div>
+            <div class="node hi"><b>useAgentSession.ts</b><span>CUSTOM on_interrupt → interruptValue · onStateChanged → stateComponent</span></div>
+          </div>
+          <div class="arrow"><em>two plain values</em></div>
+
+          <div class="step">
+            <div class="side">agent-ui</div>
+            <div class="node"><b>resolveEnvelope.ts</b><span>validate name + version, decide interrupt vs state</span></div>
+          </div>
+          <div class="arrow"><em>Resolution</em></div>
+
+          <div class="step">
+            <div class="side">agent-ui</div>
+            <div class="node"><b>AgentComponentHost.tsx</b><span>registry lookup — or a stated failure</span></div>
+          </div>
+          <div class="arrow"><em>props · respond · pending</em></div>
+
+          <div class="step">
+            <div class="side">cards</div>
+            <div class="node hi"><b>DraftReview.tsx</b><span>renders; user clicks “Submit”</span></div>
+          </div>
+          <div class="arrow"><em>respond("approve")</em></div>
+
+          <div class="step">
+            <div class="side">back out</div>
+            <div class="node"><b>forwardedProps.command.resume</b><span>graph resumes at the same interrupt()</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        Two steps in that chain are non-obvious and both are load-bearing — see
+        <a href="#protocol">§07</a>.
+      </p>
+    </section>
+
+    <!-- 03 ───────────────────────────────────────────────────────── -->
+    <section id="layers">
+      <h2><i>03</i>Layers</h2>
+      <p>Four, with deliberately hard boundaries.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Layer</th><th>Path</th><th>Role</th><th>Portable</th></tr></thead>
+          <tbody>
+            <tr><td>Contract</td><td><code>src/agent-ui/</code></td><td>Types, validation, registry, transport</td><td><span class="chip keep">yes — zero app imports</span></td></tr>
+            <tr><td>Cards</td><td><code>src/cards/</code></td><td>The eight components and their primitives</td><td><span class="chip keep">yes</span></td></tr>
+            <tr><td>Shell</td><td><code>src/shell/</code></td><td>Rail, sidebar, headers, composer</td><td><span class="chip drop">no — disposable</span></td></tr>
+            <tr><td>App</td><td><code>src/app/</code></td><td>Routes, the proxy, design tokens</td><td><span class="chip drop">no</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong><code>src/agent-ui/</code> is the deliverable.</strong> It imports nothing from
+        <code>cards/</code>, <code>shell/</code> or <code>app/</code>, so it moves as a folder.
+      </p>
+      <p>
+        <strong><code>src/shell/</code> is disposable.</strong> It reproduces the platform team’s own
+        chrome so the flow can be demonstrated in context. On migration it is deleted and the host is
+        mounted inside their chat surface instead.
+      </p>
+    </section>
+
+    <!-- 04 ───────────────────────────────────────────────────────── -->
+    <section id="props">
+      <h2><i>04</i>Where props come from</h2>
+      <p>Props are <strong>generated</strong>, never hand-written.</p>
+      <pre><code>agui/ui_contract.py                  backend, source of truth
+      │  npm run contract:pull        deliberate, manual
+      ▼
+src/agent-ui/ui-contract.json        committed snapshot · 1,197 lines
+      │  npm run contract:gen        scripts/gen-contract.mjs
+      ▼
+contract.generated.ts                props interfaces · COMPONENT_NAMES · CONTRACT_VERSION
+fixtures.generated.ts                the backend's own example per component</code></pre>
+
+      <p>
+        The generator turns each JSON Schema into a TypeScript interface and
+        <strong>hoists structurally-repeated sub-schemas into shared types</strong> rather than
+        inlining the same shape eight times — <code>DetailRow</code>, <code>OptionRow</code>,
+        <code>CardMeta</code>, <code>FieldRow</code>, <code>DraftSection</code>,
+        <code>CrMode</code>, <code>CrIntakeValues</code>. It throws if one name ever resolves to two
+        different shapes.
+      </p>
+
+      <div class="note">
+        <span class="note-tag">Why the snapshot is committed</span>
+        <p>
+          The build never depends on the backend being up, a contract change arrives as a
+          <strong>reviewable diff</strong> rather than a silent behaviour change, and every card can
+          be built and tested against the backend’s own examples with nothing running.
+        </p>
+      </div>
+
+      <h3>The type chain</h3>
+      <pre><code>// src/agent-ui/types.ts
+export interface AgentCardProps&lt;K extends ComponentName&gt; {
+  props: PropsByName[K];
+  respond: Respond;      // (value: string) =&gt; void
+  pending: boolean;      // is the graph actually blocked on this card?
+}
+
+// src/cards/DraftReview.tsx
+export function DraftReview({ props, respond, pending }: AgentCardProps&lt;"draftReview"&gt;)</code></pre>
+      <p>
+        A card declares which component it is and gets exactly that component’s props — no casts,
+        no <code>any</code>. <code>props.sections</code> is <code>DraftSection[]</code>. Rename it on
+        the backend, regenerate, and this file stops compiling.
+      </p>
+    </section>
+
+    <!-- 05 ───────────────────────────────────────────────────────── -->
+    <section id="resolution">
+      <h2><i>05</i>Resolution — deciding what to render</h2>
+      <p>
+        <code>resolveEnvelope.ts</code> is the only place an envelope is interpreted. Two plain
+        values in, a discriminated union out.
+      </p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>status</th><th>Meaning</th><th>Renders</th></tr></thead>
+          <tbody>
+            <tr><td><code>ok</code></td><td>Valid envelope, known name, current version</td><td>the card</td></tr>
+            <tr><td><code>empty</code></td><td>Nothing pending, nothing on state</td><td>FallbackCard</td></tr>
+            <tr><td><code>unknown-component</code></td><td>Name not in the contract</td><td>FallbackCard</td></tr>
+            <tr><td><code>unsupported-version</code></td><td>A version we don’t understand</td><td>FallbackCard</td></tr>
+            <tr><td><code>malformed</code></td><td>No name, no props, or a bare string</td><td>FallbackCard</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong>Every failure is a named case, never a null.</strong> This is a regulated
+        change-request path: a blank panel reads as “nothing happened” when the truth may be
+        “something happened and you cannot see what”.
+      </p>
+
+      <h3>Precedence: interrupt beats state</h3>
+      <p>
+        Both sources can carry the envelope — every HITL node calls <code>interrupt(ui)</code>
+        <em>and</em> writes the same object to <code>AgentState.ui_component</code>. They are not
+        equally reliable. On reconnect, the backend’s short-circuit path emits exactly:
+      </p>
+      <pre><code>RUN_STARTED → CUSTOM on_interrupt → RUN_FINISHED</code></pre>
+      <div class="note warn">
+        <span class="note-tag">No state snapshot</span>
+        <p>
+          So <code>ui_component</code> is stale or absent, and the interrupt value is the only
+          correct render source. Reading state first produces a card that blanks or reverts on
+          reconnect — intermittent, environment-dependent, expensive to diagnose later.
+        </p>
+      </div>
+      <p>
+        <code>pending</code> derives from this. <code>source === "interrupt"</code> means the graph
+        is genuinely blocked; a card rendered from stale state renders <strong>inert</strong>, so it
+        can never look actionable when it isn’t.
+      </p>
+    </section>
+
+    <!-- 06 ───────────────────────────────────────────────────────── -->
+    <section id="registry">
+      <h2><i>06</i>The registry and the host</h2>
+      <pre><code>// src/agent-ui/registry.tsx
+export const REGISTRY: TotalRegistry = {
+  crModeChoice:       CrModeChoice,
+  featureComingSoon:  FeatureComingSoon,
+  crIntakeForm:       CrIntakeForm,
+  templateOrCrPicker: TemplateOrCrPicker,
+  cycleIdPicker:      CycleIdPicker,
+  draftReview:        DraftReview,
+  fieldPrompt:        FieldPrompt,
+  submissionResult:   SubmissionResult,
+};</code></pre>
+      <p>
+        <code>TotalRegistry</code> is <code>{ [K in ComponentName]: AgentCard&lt;K&gt; }</code> —
+        total, so a component added to the contract without a card here <strong>fails to
+        compile</strong>.
+      </p>
+      <p>
+        The host does <strong>no stage-sniffing</strong> — it never inspects props to work out which
+        screen this is. An earlier iteration did, matching on
+        <code>labels.includes("Similarity score:")</code>. That coupling is exactly what the contract
+        removes. If a heuristic ever seems necessary here, the fix belongs in the backend’s
+        <code>ui_contract.py</code>.
+      </p>
+    </section>
+
+    <!-- 07 ───────────────────────────────────────────────────────── -->
+    <section id="protocol">
+      <h2><i>07</i>Two protocol traps</h2>
+      <p>
+        Both found by reading <code>ag-ui-langgraph==0.0.42</code>, which the backend pins.
+        <strong>The current AG-UI documentation describes a newer protocol</strong>, and following it
+        fails silently in both cases.
+      </p>
+
+      <h3>Interrupts are a CUSTOM event</h3>
+      <pre><code>CustomEvent(type=EventType.CUSTOM, name="on_interrupt", value=&lt;envelope&gt;)
+...
+RunFinishedEvent(type=EventType.RUN_FINISHED, thread_id=…, run_id=…)</code></pre>
+      <p>
+        <code>RunFinishedEvent</code> carries <strong>no <code>outcome</code> field</strong>, so
+        <code>agent.pendingInterrupts</code> and the <code>outcome: "interrupt"</code> branch never
+        fire. The envelope is <code>event.value</code>.
+      </p>
+
+      <h3>Resume travels in forwardedProps</h3>
+      <div class="note warn">
+        <span class="note-tag">The expensive one</span>
+        <p>
+          <code>ag-ui-protocol</code> defines <code>resume</code> on <code>RunAgentInput</code>, and
+          <code>@ag-ui/client</code> exposes <code>runAgent({ resume })</code>.
+          <strong><code>agent.py</code> never reads it.</strong> Sending it is accepted by Pydantic,
+          returns no error, and the graph never wakes up. Nothing in any log explains why.
+        </p>
+      </div>
+      <pre><code>agent.runAgent({ forwardedProps: { command: { resume: value } } });</code></pre>
+    </section>
+
+    <!-- 08 ───────────────────────────────────────────────────────── -->
+    <section id="transport">
+      <h2><i>08</i>The transport</h2>
+      <p>
+        <code>useAgentSession.ts</code> is the <strong>only</strong> file that knows how the agent is
+        reached. Everything below it takes plain values — which is why dropping CopilotKit cost one
+        file and changed zero cards.
+      </p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Subscriber</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>onCustomEvent</code></td><td><code>name === "on_interrupt"</code> → set interruptValue, status <code>waiting</code></td></tr>
+            <tr><td><code>onStateChanged</code></td><td>merged state → set stateComponent</td></tr>
+            <tr><td><code>onRunErrorEvent</code></td><td>surface the message, status <code>error</code></td></tr>
+            <tr><td><code>onRunFinishedEvent</code></td><td>only promotes to <code>finished</code> when nothing is waiting</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="note-tag">onStateChanged, not onStateDeltaEvent</span>
+        <p>
+          The per-event hook fires with the patch, and reading <code>agent.state</code> inside it
+          returns the state from <em>before</em> the patch is applied — which silently produced no
+          card when <code>ui_component</code> arrived as a delta.
+        </p>
+      </div>
+      <p>
+        <code>respond(value)</code> clears the pending interrupt <strong>before</strong> running, or
+        a stale envelope stays on screen and outranks the next one.
+      </p>
+    </section>
+
+    <!-- 09 ───────────────────────────────────────────────────────── -->
+    <section id="cards">
+      <h2><i>09</i>Inside a card</h2>
+      <p>Cards compose from shared primitives. Nothing here fetches its own content.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Primitive</th><th>Used by</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td><code>CardShell</code></td><td>all eight</td><td>avatar, bubble, meta strip. Bottom-left corner square — it is a speech bubble</td></tr>
+            <tr><td><code>Field</code></td><td>intake form, picker</td><td>one input, five states</td></tr>
+            <tr><td><code>Select</code></td><td>any field with options</td><td>the field <em>becomes</em> the panel</td></tr>
+            <tr><td><code>OptionRow</code></td><td>template picker</td><td>radio + label + badge + separate disclosure</td></tr>
+            <tr><td><code>SelectChip</code></td><td>cycle picker</td><td>label-only, no radio</td></tr>
+            <tr><td><code>DetailsModal</code></td><td>template picker</td><td>scrim + centred dialog, two-column table</td></tr>
+            <tr><td><code>DraftSection</code></td><td>draft review</td><td>accordion tile; two field treatments</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The rule engineered hardest</h3>
+      <div class="note warn">
+        <span class="note-tag">Expanding ≠ selecting</span>
+        <p>
+          On <code>OptionRow</code> the chevron opens the details; the row body selects. Picking a
+          baseline CR determines <strong>every field of the resulting draft</strong>, so it must not
+          be possible to select one as a side effect of trying to read it.
+        </p>
+        <p>
+          The chevron is a <strong>sibling</strong> button, not nested — a button inside a button is
+          invalid HTML and browsers resolve the click inconsistently. The separation is structural,
+          not dependent on <code>stopPropagation</code> surviving a refactor.
+        </p>
+      </div>
+
+      <h3>Two cards that legitimately reach the network</h3>
+      <p>
+        <code>CrIntakeForm</code> and <code>useJiraLookup</code> call the contract’s own REST
+        helpers, which it explicitly intends. The Jira lookup implements four rules, each with a
+        reason:
+      </p>
+      <ol class="body">
+        <li>Typing fires nothing.</li>
+        <li>600 ms after the last keystroke, <strong>or immediately on blur</strong>.</li>
+        <li>Only a key matching the pattern is fetched — a partial key is <strong>not an error</strong>, because it is not a mistake yet.</li>
+        <li>Requests are sequence-numbered; a slow response for an old key is discarded.</li>
+      </ol>
+    </section>
+
+    <!-- 10 ───────────────────────────────────────────────────────── -->
+    <section id="response">
+      <h2><i>10</i>The response path</h2>
+      <p>One channel out: <code>respond(value: string)</code>.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Card</th><th>Sends</th></tr></thead>
+          <tbody>
+            <tr><td><code>CrModeChoice</code></td><td><code>"single"</code> / <code>"bulk"</code></td></tr>
+            <tr><td><code>CrIntakeForm</code></td><td>labelled multi-line text, parsed by <code>node_1</code> with an LLM</td></tr>
+            <tr><td><code>TemplateOrCrPicker</code></td><td>the template ID <em>or</em> the reference CR value</td></tr>
+            <tr><td><code>CycleIdPicker</code></td><td>the cycle value</td></tr>
+            <tr><td><code>DraftReview</code></td><td><code>action.value</code> verbatim — <code>approve</code> / <code>reject</code></td></tr>
+            <tr><td><code>FieldPrompt</code></td><td>the option value, or free text</td></tr>
+            <tr><td><code>FeatureComingSoon</code></td><td>the back label</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note warn">
+        <span class="note-tag">Tokens, never labels</span>
+        <p>
+          <code>cond_edge_b</code>’s approval guard is a <strong>substring test</strong>, so labels
+          are actively dangerous: “Submit for Approval” contains no <code>approve</code>, while
+          “I do not approve” contains one.
+        </p>
+      </div>
+      <p>
+        <strong>Bulk stays selectable</strong> even though the contract sends
+        <code>enabled: false</code>. <code>node_0_wait</code> routes on <code>mode == "bulk"</code>
+        and never reads <code>enabled</code>, answering with the <code>featureComingSoon</code> card.
+        Disabling it client-side would make that designed screen unreachable.
+      </p>
+    </section>
+
+    <!-- 11 ───────────────────────────────────────────────────────── -->
+    <section id="styling">
+      <h2><i>11</i>Styling</h2>
+      <p>
+        <code>globals.css</code> is the design system. <strong>No component contains a raw hex.</strong>
+        Values are extracted from the Figma frame being built and added as tokens first.
+      </p>
+      <ul>
+        <li>Type steps are named by pixel size — <code>text-16</code>, not <code>text-base</code> — so checking a component against the design is a literal comparison.</li>
+        <li>Tracking is a uniform <code>-0.014em</code>: the design’s −0.336/24, −0.224/16, −0.196/14 and −0.168/12 all equal exactly that.</li>
+        <li>The root size tracks viewport width, so the whole UI scales as one piece.</li>
+      </ul>
+      <div class="note warn">
+        <span class="note-tag">A trap worth knowing</span>
+        <p>
+          <code>lib/cn.ts</code> registers those steps with <code>tailwind-merge</code>. Without it,
+          <code>cn("text-14 …", "text-ink-900")</code> <strong>silently drops the size</strong> —
+          a non-standard <code>text-*</code> is filed under colours. Any new step must be added to
+          <code>TYPE_STEPS</code> there as well as to <code>globals.css</code>.
+        </p>
+      </div>
+    </section>
+
+    <!-- 12 ───────────────────────────────────────────────────────── -->
+    <section id="adding">
+      <h2><i>12</i>Adding a component</h2>
+      <ol class="body">
+        <li>Builder and schema in the backend’s <code>agui/ui_contract.py</code></li>
+        <li><code>npm run contract:pull &amp;&amp; npm run contract:gen</code></li>
+        <li>Write the card, typed <code>AgentCardProps&lt;"yourName"&gt;</code></li>
+        <li>Add it to <code>REGISTRY</code></li>
+      </ol>
+      <p>
+        The compiler catches steps 2 ↔ 4 — the registry is total. The runtime drift check catches
+        1 ↔ 4.
+      </p>
+    </section>
+
+    <!-- 13 ───────────────────────────────────────────────────────── -->
+    <section id="files">
+      <h2><i>13</i>File map</h2>
+      <pre><code>src/agent-ui/                   THE DELIVERABLE — zero app imports
+  ui-contract.json        1197  verbatim snapshot of the backend's contract
+  contract.generated.ts    211  props interfaces, names, version
+  fixtures.generated.ts    178  the backend's example per component
+  types.ts                  73  AgentCardProps, Registry, Resolution
+  resolveEnvelope.ts       104  validation + interrupt-beats-state
+  registry.tsx              38  the allow-list, total
+  AgentComponentHost.tsx    54  lookup and render
+  useAgentSession.ts       193  the transport — the only AG-UI-aware file
+  config.ts                 39  REST base, Jira regex, debounce
+  FallbackCard.tsx          46  every failure, visibly
+
+src/cards/                      THE EIGHT + primitives
+  CrModeChoice · CrIntakeForm · TemplateOrCrPicker · CycleIdPicker
+  DraftReview · FieldPrompt · SubmissionResult · FeatureComingSoon
+  CardShell · Field · Select · Radio · SelectChip · OptionRow
+  DetailsModal · DraftSection · useJiraLookup
+
+src/shell/                      DISPOSABLE — platform team owns this
+  AppShell · IconRail · AgentSidebar · AppHeader · Composer · Greeting
+
+src/app/
+  page.tsx                  59  landing → live session
+  api/agent/route.ts        71  same-origin proxy to :8084
+  globals.css              222  the design system
+
+scripts/
+  gen-contract.mjs         216  JSON Schema → TypeScript
+  pull-contract.mjs         61  refresh the snapshot from a running backend</code></pre>
+    </section>
+
+    <!-- 14 ───────────────────────────────────────────────────────── -->
+    <section id="seams">
+      <h2><i>14</i>Where the seams are</h2>
+      <p>When this migrates into the platform app:</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th></th><th>What</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip keep">move</span></td><td><code>src/agent-ui/</code> and <code>src/cards/</code></td><td>they import nothing from the app</td></tr>
+            <tr><td><span class="chip drop">delete</span></td><td><code>src/shell/</code></td><td>the platform app already owns this chrome</td></tr>
+            <tr><td><span class="chip keep">merge</span></td><td>tokens in <code>globals.css</code></td><td>the J&amp;J brand values already match</td></tr>
+            <tr><td><span class="chip keep">keep</span></td><td><code>gen-contract</code>, <code>pull-contract</code></td><td>without them the contract can never be resynced</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>const session = useAgentSession({ url: "/api/agent" });
+
+&lt;AgentComponentHost
+  resolution={session.resolution}
+  respond={session.respond}
+/&gt;</code></pre>
+      <p>That is the whole integration surface.</p>
+    </section>
+
+    <footer>
+      Companion documents — <strong>DECISIONS.md</strong> for why each choice was made, with every
+      inference flagged; <strong>HANDOVER.md</strong> for running it against the agent.
+    </footer>
+  </main>
+</div>
