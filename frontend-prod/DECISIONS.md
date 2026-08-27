@@ -993,6 +993,91 @@ silently dropping type steps (D30).
 
 ---
 
+### D35 — The pencil is a real control: edit sends a turn, not a save
+**Status:** settled — resolves G23
+
+An editable field's pencil opens an inline editor with two outcomes:
+**Update draft** and **Keep original**.
+
+**The payload.** `"${field.label}: ${value}"` — exactly the shape
+`_looks_like_field_update_message` accepts (non-empty name before the first
+colon, non-empty value after). Newlines are collapsed to spaces so a multi-line
+description still arrives as one line. Verified: editing a description produced
+`Description of Change: Update the treasury posting rules. Also adjust the
+reconciliation job.`
+
+**Why the copy says what it says.** An edit is **this turn's answer**, not a
+local mutation — the agent revalidates against the same
+`DROPDOWN_FIELDS` / `get_field_metadata` the card was rendered from and presents
+the draft again. That is the retry loop. The editor states this in place rather
+than implying the change was saved, because a control that looks like a form
+field and behaves like a message is exactly the kind of thing people misread.
+
+**One edit at a time.** Opening an editor disables every other pencil. There is
+one response channel and one answer per turn; two pending edits could not both
+be sent, and offering them would imply otherwise.
+
+**The control follows the contract.** `allowed_values` renders as `SelectChip`s
+— the same control the cycle picker uses, so the values SolMan will actually
+accept are visible rather than hidden behind a menu. A value over 60 characters
+gets a textarea; anything shorter gets an input.
+
+**A correction this exposed.** The icon on an editable field was rendering
+`field-info.svg`, a stand-in chosen before that asset had been pulled. The real
+asset (`59612:13457`) is a **pencil** — so the design had always specified an
+edit affordance, and the stand-in had made the card look read-only by design
+rather than by omission.
+
+**Not in Figma:** the expanded editor itself. Built from existing primitives —
+`SelectChip`, the field box geometry, and the button treatments from
+`draftReview`'s action row — so it reads as native. Logged as G28.
+
+---
+
+### D36 — Retry: ask the agent to write the value again, then choose
+**Status:** settled
+
+Fields the agent authored carry a second control beside the pencil. Retry does
+not open an editor — it asks for the value to be **written again**, and shows the
+result **beside the original** so the user picks.
+
+```
+idle  ──retry──▶  loading  ──▶  compare  ──┬── Keep original  → back to idle, nothing sent
+                                            ├── Retry again    → loading
+                                            └── Use this one   → sends "Label: value"
+```
+
+**Why a candidate rather than a replacement.** A regenerated description that
+silently overwrote the original would be a change nobody agreed to, on a card
+whose entire purpose is approving what will be submitted. So the new value sits
+next to the old one, labelled, until someone chooses. When the two come back
+identical the card says so and disables the choice, rather than offering a
+no-op that looks like a decision.
+
+**Retry is distinguished from edit deliberately.** An edit is the user supplying
+text; a retry is the agent supplying it. They answer different needs — "this is
+wrong, here is the right text" versus "try again, I don't like this one" — and
+both were kept.
+
+**The visual grammar reuses what the design already established:** the original
+takes the locked treatment (`field-disabled`, `ink-muted`) because it is not what
+is being asked about, and the candidate takes the active one. The control is
+`reset.svg`, the exported circular arrow already in use on the intake form.
+
+**Only on fields the agent authored** — `description_of_change` and
+`reason_for_change`, both from `generate_cr_fields_from_jira`. Offering it on a
+SolMan-supplied field would promise something the agent cannot do.
+
+**Accepting a candidate sends `"Label: value"`**, the same verified path as an
+edit (D35), so nothing new is asked of the graph.
+
+Verified end to end: loading state with a `motion-safe` spinner and every other
+control disabled; compare showing both values; Keep original restoring the row
+with nothing sent; Retry again returning to loading; Use this one sending
+`Description of Change: Revised: …` and locking the card.
+
+---
+
 ## Gaps
 
 ### G1 — CopilotKit does not support headless interrupts for LangGraph/FastAPI
@@ -1445,7 +1530,16 @@ value**, and the only place a card renders something the design does not show.
 ---
 
 ### G23 — The contract defines no way to submit a field edit
-**Status:** open, **needs a backend answer** · **Impact:** medium
+**Status:** **resolved** by D35, 2026-08-26 · **Impact:** none
+
+The premise was wrong. There is no *action* for an edit, but there is a
+**channel**: `node_9_hitl_wait` runs every reply through
+`_looks_like_field_update_message` and routes anything shaped
+`"Field Name: value"` to `cond_edge_b` for update parsing rather than approval
+routing. The design also had the affordance all along — the icon on an editable
+field is a **pencil**, which an earlier stand-in had obscured.
+
+*Original finding below.*
 
 `node_10` validates edits against `DROPDOWN_FIELDS` and `get_field_metadata`, and
 the contract sends `editable`, `field_type` and `allowed_values` per field — all
@@ -1506,6 +1600,74 @@ simply stops appearing — no frontend work either way.
 
 ---
 
+### G27 — The design's `capitalize` is wrong for agent prose
+**Status:** **resolved** 2026-08-26 · **Impact:** was visible
+
+The field-value treatment carries `capitalize` in Figma, and the design's own
+sample values are short — "Information", "Low", "In Development" — where it is
+harmless.
+
+Applied to a real description the agent wrote, it title-cases every word:
+
+> Update **The** Treasury Posting Rule Set **So** Month-End Accruals Post **To
+> The** Correct GL Account…
+
+Removed from field values and from the dropdown's selected value. Kept on labels
+and section names, which are short identifiers where the design's intent holds.
+
+The general rule this follows is the standing one (G15): **copy is the backend's;
+the frontend renders it as sent.** A CSS transform that rewrites agent text is
+the same violation as hard-coding a label, just less obvious.
+
+---
+
+### G28 — The field editor has no Figma frame
+**Status:** open · **Impact:** low
+
+The design specifies the pencil but not what opens. The editor is assembled from
+existing primitives — `SelectChip` for `allowed_values`, the field box geometry,
+and the small button treatments from `draftReview`'s action row — with a
+`brand-a52` border marking the field under edit and `brand-a24` on its section.
+
+**Resolve by** getting a designed treatment, or confirming this one.
+
+---
+
+### G29 — The regenerate call is a stub
+**Status:** open · **Impact:** medium — **the feature is UI-only until the backend lands**
+
+There is no regenerate action in the contract, and unlike a field edit — which
+`node_9` accepts as `"Field Name: value"` — there is no reply shape that means
+"produce this again".
+
+`cards/regenerateField.ts` therefore returns a locally-composed alternative after
+a short delay, so the states can be built and demonstrated. It logs a console
+notice in dev, and **the whole of the real implementation is the body of one
+function**; the card awaits a promise of a string and does not care where it came
+from.
+
+**Resolve by** adding a regenerate path to the graph. Then replace that body and
+delete `draftAlternative`. Nothing else changes.
+
+---
+
+### G30 — The contract cannot say which fields are regenerable
+**Status:** open, **needs a backend decision** · **Impact:** low
+
+Nothing in `FieldRow` distinguishes a value the agent wrote from one SolMan
+supplied, so `REGENERABLE_KEYS` in `regenerateField.ts` is a hard-coded list of
+two contract keys.
+
+That is exactly the kind of client-side inference the contract exists to remove —
+it would silently miss a third generated field, or offer retry on a field the
+agent cannot regenerate.
+
+**Resolve by** adding `regenerable: true` to `FieldRow`, alongside the existing
+`editable` and `lock_type`. Additive, so `CONTRACT_VERSION` would not move, and
+the hard-coded list disappears.
+
+---
+
 ## Change log
 
 | Date | Entry |
@@ -1528,3 +1690,5 @@ simply stops appearing — no frontend work either way.
 | 2026-08-25 | **All 8 cards complete.** D32 + G24–G26. Registry now total (D9 closed); PlaceholderCard deleted. |
 | 2026-08-25 | D33: replaced the native select with the designed dropdown panel (59527:10623). Reported by review — the OS-drawn list ignored the design. |
 | 2026-08-25 | D34: mock now emits the real event sequence (steps, full 22-key snapshots, messages snapshots, deltas, streamed text). Caught and fixed a STATE_DELTA bug in useAgentSession. |
+| 2026-08-26 | D35: draft-review field editing (Update draft / Keep original), resolving G23. G27 (capitalize on agent prose) fixed. G28 logged. Meta strip gap fixed on narrow cards. |
+| 2026-08-26 | D36: retry on agent-authored fields — loading → compare → keep/use. G29 (stub) and G30 (no regenerable flag) logged. |

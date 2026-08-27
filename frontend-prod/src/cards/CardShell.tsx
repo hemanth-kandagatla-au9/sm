@@ -52,7 +52,12 @@ function MetaStrip({ meta }: { meta: CardMeta }) {
   return (
     <div className="flex w-full flex-col gap-1.5">
       <div className="h-px w-full bg-line" />
-      <div className="flex w-full items-center justify-between whitespace-nowrap">
+      {/*
+       * gap-4 matters on a narrow card. `justify-between` alone leaves the two
+       * groups touching once the row runs out of slack, so the timestamp and
+       * "Processing Time" read as one string.
+       */}
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 whitespace-nowrap">
         {/*
          * The design colours the date and the time differently (#677489 and
          * #adb4c1). The contract sends `timestamp` as a single pre-formatted

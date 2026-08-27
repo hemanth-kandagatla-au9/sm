@@ -106,7 +106,8 @@ export function Select({
           className="absolute left-0 top-0 z-30 flex w-full flex-col items-center gap-3 overflow-hidden rounded-xl border border-line bg-surface px-6 py-[1.0625rem] shadow-card"
         >
           <div className="flex w-full items-center justify-between border-b border-line pb-3">
-            <span className="text-16 font-text capitalize text-ink-label">{label}</span>
+            {/* Not capitalised — this is the selected value, i.e. agent data. */}
+            <span className="text-16 font-text text-ink-label">{label}</span>
             <span className="flex -scale-y-100 items-center justify-center">
               <Icon src="section-chevron.svg" width={24} height={24} />
             </span>

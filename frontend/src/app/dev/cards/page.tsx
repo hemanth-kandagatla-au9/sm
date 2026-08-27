@@ -61,6 +61,9 @@ const EXTRA_CASES: Partial<Record<ComponentName, { label: string; props: object 
         {
           name: "Request for Change Scope",
           fields: [
+            // Long enough to exercise the textarea path — this is the case the
+            // edit affordance exists for.
+            { key: "description_of_change", label: "Description of Change", value: "Update the treasury posting rule set so month-end accruals post to the correct GL account, and adjust the downstream reconciliation job to match.", editable: true, empty: false },
             { key: "reason_for_change", label: "Reason for change", value: "Config change to the treasury posting rules.", editable: true, empty: false },
             { key: "gxp_relevant", label: "GxP Relevant", value: "", editable: true, empty: true },
           ],

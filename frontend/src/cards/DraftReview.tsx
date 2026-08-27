@@ -12,19 +12,37 @@
  * response of "I do not approve" contains one. Sending the token is the only
  * safe option, and it is why the card never derives a value from a label.
  *
- * ── What this card does not do ──────────────────────────────────────────────
- * It does not edit. The contract defines no action for submitting a field
- * change — `actions` carries only approve/reject-style values — so edits go
- * through the composer as free text, which `node_10` validates. The editable
- * treatment is therefore an accurate *description* of what the agent will accept,
- * not a control. See G23.
+ * ── Editing is a turn, not a save ───────────────────────────────────────────
+ * `actions` carries only approve/reject-style values, so there is no *action*
+ * for a field change. There is still a channel: `node_9_hitl_wait` runs every
+ * reply through `_looks_like_field_update_message` and routes anything shaped
+ * `"Field Name: value"` to `cond_edge_b` for update parsing instead of approval
+ * routing.
+ *
+ * So the pencil on an editable field sends that string as **this turn's answer**.
+ * The agent revalidates against the same `DROPDOWN_FIELDS` / `get_field_metadata`
+ * the card was rendered from, and presents the draft again.
+ *
+ * ── Retry ───────────────────────────────────────────────────────────────────
+ * Fields the agent authored also carry a retry control: it asks for the value to
+ * be written *again*, and shows the result beside the original so the user
+ * chooses. A regenerated description that silently replaced the original would
+ * be a change nobody agreed to, which is why it is a candidate until picked.
+ *
+ * Currently stubbed — `regenerateField.ts` has the single swap point.
+ *
+ * Only one field can be busy at a time, because one turn has one answer.
+ *
+ * See DECISIONS.md D35 (edit) and D36 (retry). Together they supersede G23.
  */
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { AgentCardProps } from "@/agent-ui/types";
+import type { FieldRow } from "@/agent-ui/contract.generated";
 import { CardShell } from "./CardShell";
-import { DraftSection } from "./DraftSection";
+import { DraftSection, type FieldActivity } from "./DraftSection";
+import { regenerateField } from "./regenerateField";
 import { cn } from "@/lib/cn";
 
 /**
@@ -43,7 +61,47 @@ function actionClass(index: number, total: number, value: string) {
 export function DraftReview({ props, respond, pending }: AgentCardProps<"draftReview">) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [answered, setAnswered] = useState(false);
+  /**
+   * At most one field across the card may be busy — editing or retrying. There
+   * is one response channel and one answer per turn; two pending changes could
+   * not both be sent, and offering them would imply otherwise.
+   */
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [activity, setActivity] = useState<FieldActivity | null>(null);
+  const retryAbort = useRef<AbortController | null>(null);
   const disabled = !pending || answered;
+
+  function clearActivity() {
+    retryAbort.current?.abort();
+    retryAbort.current = null;
+    setActiveKey(null);
+    setActivity(null);
+  }
+
+  /**
+   * Ask the agent to write the value again. The result is a *candidate* — it is
+   * not applied until the user picks it, because a regenerated description that
+   * silently replaced the original would be a change nobody agreed to.
+   */
+  async function startRetry(field: FieldRow) {
+    if (disabled) return;
+    retryAbort.current?.abort();
+    const ctrl = new AbortController();
+    retryAbort.current = ctrl;
+
+    setActiveKey(field.key);
+    setActivity({ kind: "retry-loading" });
+
+    try {
+      const candidate = await regenerateField(field, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+      setActivity({ kind: "retry-compare", candidate });
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
+      // A failed regeneration must not strand the field mid-state.
+      clearActivity();
+    }
+  }
 
   function toggle(name: string) {
     setOpen((prev) => {
@@ -58,6 +116,26 @@ export function DraftReview({ props, respond, pending }: AgentCardProps<"draftRe
     if (disabled) return;
     setAnswered(true);
     respond(value);
+  }
+
+  /**
+   * A changed value IS this turn's answer, not a local save — whether the user
+   * typed it or accepted a regenerated one.
+   *
+   * `node_9_hitl_wait` runs every reply through `_looks_like_field_update_message`
+   * and routes anything shaped `"Field Name: value"` to update parsing rather
+   * than approval routing. So the payload is that exact shape — the field's
+   * display label, a colon, the new value.
+   *
+   * Newlines are collapsed because the helper splits on the first colon and
+   * treats the remainder as the value; a multi-line value still parses, but a
+   * single line is what the graph's own examples look like.
+   */
+  function submitValue(field: FieldRow, value: string) {
+    if (disabled || !value.trim()) return;
+    setAnswered(true);
+    clearActivity();
+    respond(`${field.label}: ${value.replace(/\s*\n\s*/g, " ").trim()}`);
   }
 
   const actions = props.actions ?? [];
@@ -82,6 +160,21 @@ export function DraftReview({ props, respond, pending }: AgentCardProps<"draftRe
               fields={section.fields}
               open={open.has(section.name)}
               onToggle={() => toggle(section.name)}
+              activeKey={activeKey}
+              activity={activity}
+              disabled={disabled}
+              onStartEdit={(key) => {
+                // Starting an activity implies the section is open.
+                setOpen((prev) => new Set(prev).add(section.name));
+                setActiveKey(key);
+                setActivity({ kind: "edit" });
+              }}
+              onStartRetry={(field) => {
+                setOpen((prev) => new Set(prev).add(section.name));
+                void startRetry(field);
+              }}
+              onCancel={clearActivity}
+              onSubmitValue={submitValue}
             />
           ))}
         </div>
