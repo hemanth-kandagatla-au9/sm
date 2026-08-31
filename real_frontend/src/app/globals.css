@@ -1,0 +1,240 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — extracted from Figma, file OKMf8QB5HkTjgaT3lDR438.
+ * Source frame for this pass: 59525:9716 "Landing Screen/ Single CR".
+ *
+ * Every value here is a literal read out of the design, not an interpretation.
+ * When a later frame introduces a value that is not in this file, add it here
+ * first and reference the token — never inline a hex in a component.
+ */
+@theme {
+  /* ── Brand ──────────────────────────────────────────────────────────── */
+  --color-brand: #eb1700;
+  --color-brand-grad-from: #eb8479;
+  --color-brand-grad-to: #de2814;
+  --color-accent-blue: #71a8ef;
+
+  /* ── Ink / text ─────────────────────────────────────────────────────── */
+  --color-ink-900: #000000; /* headings, agent names */
+  --color-ink-800: #202020; /* Gray/gray-100 — the only named Figma variable */
+  --color-ink-600: #4a5567; /* breadcrumb, secondary labels */
+  --color-ink-500: #677489; /* subtitles, helper text */
+  --color-ink-400: #98a4b6; /* section labels, search placeholder */
+  --color-ink-300: #a3aebf; /* disclaimer footer */
+  --color-ink-250: #adb4c1; /* persona subtitle */
+  --color-ink-200: #b5c3d7; /* composer placeholder */
+
+  /* ── Surfaces ───────────────────────────────────────────────────────── */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f4f8; /* "More" pill */
+  --color-surface-tint: #f5f9ff; /* role pill, canvas top */
+  --color-canvas-from: #fffbfb;
+  --color-canvas-to: #f5f9ff;
+
+  /* ── Lines ──────────────────────────────────────────────────────────── */
+  --color-line: #e3e8ef; /* default 1px border */
+  --color-line-soft: #e2e8f0; /* sidebar-02 divider */
+  --color-line-faint: #f3f3f3; /* nav header underline */
+  --color-line-ghost: #f8f8f8; /* persona card hairline */
+
+  /* ── Agent icon chips ───────────────────────────────────────────────── */
+  --color-chip-blue: #d5e7fd; /* SASA */
+  --color-chip-amber: #ffebb9; /* Workshop Assist */
+  --color-chip-green: #d0f9db; /* CR/CO Agent */
+
+  /* ── State ──────────────────────────────────────────────────────────── */
+  --color-disabled: #d1d6dd;
+
+  /* ── Form fields (Figma component set 57410:88003) ──────────────────── */
+  /* The nine input variants differ only in border, helper colour and fill. */
+  --color-ink-label: #20252d; /* field label — fractionally cooler than ink-800 */
+  --color-field-disabled: #f7f7f7; /* the "default" variant, i.e. inert */
+  --color-error: #d01400; /* Error border + helper */
+  --color-warning: #f7b715; /* Missing border + helper */
+  --color-success: #0b7929; /* Verified border + helper */
+
+  /* ── Selectable option rows (Figma 59602:12552) ─────────────────────── */
+  --color-option-bg: #f9fbff;
+  /* Platform badge — the only blue accent that is not the New Chat gradient. */
+  --color-badge-blue: #2684ff;
+  --color-badge-blue-line: rgba(38, 132, 255, 0.4);
+
+  /* ── Draft review (Figma 59571:11519, 59481:7277) ───────────────────── */
+  --color-ink-450: #8992a0; /* field label inside an expanded section */
+  --color-ink-muted: #7b8492; /* locked field value */
+  /* "Submit Draft" — a soft-danger secondary, distinct from the primary. */
+  --color-danger-soft-bg: #fff0ee;
+  --color-danger-soft-line: #ffb5ad;
+  --color-danger-soft-text: #e5483f;
+
+  /* ── Modal (Figma 59602:12443) ──────────────────────────────────────── */
+  --color-scrim: rgba(0, 0, 0, 0.12);
+  --color-modal-close: #eff1f4;
+  --color-table-line: #eaecf0;
+  --color-table-head: #fcfcfd;
+
+  /* ── Primary button (Figma 59525:10270) ─────────────────────────────── */
+  /* The primary action is a gradient, not flat brand red. */
+  --color-btn-from: #ff5d4c;
+  --color-btn-to: #f72812;
+
+  /* ── Brand at reduced alpha ─────────────────────────────────────────── */
+  /* Used by the agent avatar ring and the radio hover state — the design
+     reuses the same two alphas, so they are named once. */
+  --color-brand-a08: rgba(235, 23, 0, 0.08); /* selected chip fill */
+  --color-brand-a12: rgba(235, 23, 0, 0.12);
+  --color-brand-a24: rgba(235, 23, 0, 0.24); /* selected chip border */
+  --color-brand-a52: rgba(235, 23, 0, 0.52);
+
+  /* ── Agent avatar (Figma 59646:14742) ───────────────────────────────── */
+  --color-avatar-from: #fff1f1;
+  --color-avatar-to: #ffc4be;
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-display: var(--font-johnson-display), Helvetica, Arial, sans-serif;
+  --font-text: var(--font-johnson-text), Helvetica, Arial, sans-serif;
+
+  /*
+   * Steps are still named by their Figma px size — text-24 is the design's 24px
+   * — but expressed in rem so the whole UI scales with the root size. See the
+   * `html` rule below for why.
+   *
+   * Tracking is uniform at -0.014em across every step. That is not a
+   * simplification: -0.336/24, -0.224/16, -0.196/14 and -0.168/12 all equal
+   * exactly -0.014, so the design uses one consistent -1.4% tracking. In em it
+   * scales with the type instead of drifting.
+   */
+  --text-10: 0.625rem; /* 10px */
+  --text-10--line-height: normal;
+
+  --text-12: 0.75rem; /* 12px */
+  --text-12--line-height: 1rem; /* 16px */
+  --text-12--letter-spacing: -0.014em;
+
+  --text-14: 0.875rem; /* 14px */
+  --text-14--line-height: 1rem; /* 16px */
+  --text-14--letter-spacing: -0.014em;
+
+  /*
+   * The select chip is the one place the design departs from -1.4% tracking:
+   * +0.07px at 14px, i.e. +0.005em.
+   *
+   * Deliberately a `--tracking-*` token, not a `--text-chip` step. A custom
+   * `text-*` utility whose name is not numeric gets classified as a COLOUR by
+   * tailwind-merge and silently dropped when a real text colour is also present
+   * — `text-chip text-brand` collapses to `text-brand`, with no error and no
+   * visible class. The numeric steps (`text-16`, `text-24`) survive only because
+   * they parse as numbers. `tracking-*` has no such ambiguity.
+   */
+  --tracking-chip: 0.005em;
+
+  --text-16: 1rem; /* 16px */
+  --text-16--line-height: 1.5rem; /* 24px */
+  --text-16--letter-spacing: -0.014em;
+
+  --text-20: 1.25rem; /* 20px — modal title, Johnson Display 500 */
+  --text-20--line-height: 1.5rem; /* 24px */
+  --text-20--letter-spacing: -0.014em;
+
+  --text-24: 1.5rem; /* 24px */
+  --text-24--line-height: 1.5rem; /* 24px */
+  --text-24--letter-spacing: -0.014em;
+
+  --text-64: 4rem; /* 64px */
+  --text-64--line-height: 1.2;
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-chip: 0.203125rem; /* 3.25px — yes, really 3.25 */
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
+  --radius-2xl: 1.5rem; /* 24px — modal */
+
+  /* ── Elevation ──────────────────────────────────────────────────────── */
+  --shadow-card: 0.25rem 0.25rem 0.25rem 0 rgba(226, 223, 223, 0.12);
+  --shadow-inset-glow: inset 0.25rem 0.25rem 2rem 0 rgba(255, 255, 255, 0.4);
+  /* 5.642px and 22.568px in the design → rem at the 1512 reference width. */
+  --shadow-avatar: 0 0.3526rem 1.4105rem 0 rgba(161, 161, 161, 0.25);
+  --shadow-avatar-inset: inset 0 0.3526rem 1.4105rem 0 rgba(255, 255, 255, 0.25);
+  /* Hover lift on a select chip — a drop-shadow filter in the design. */
+  --drop-shadow-chip: 0 0.25rem 0.125rem rgba(198, 197, 197, 0.15);
+
+  /* ── Layout rails ───────────────────────────────────────────────────── */
+  --spacing-rail: 5.75rem; /* 92px — icon-only side navigation */
+  --spacing-sidebar: 14.25rem; /* 228px — agent list side navigation */
+  --spacing-header: 5.5rem; /* 88px — both header bands */
+}
+
+/*
+ * The primary action gradient. Figma authors it at 225.99deg
+ * (59616:13508); `bg-linear-to-r` was a close-enough approximation on the
+ * intake form and is now replaced by the real angle in both places.
+ */
+@utility bg-btn-primary {
+  background-image: linear-gradient(
+    225.99deg,
+    var(--color-btn-from) 0%,
+    var(--color-btn-to) 100%
+  );
+}
+
+@layer base {
+  html {
+    font-family: var(--font-text);
+
+    /*
+     * The design is authored at a 1512px reference width. On a narrower
+     * viewport — a Windows laptop at 150% display scaling reports 1280 CSS px,
+     * for instance — reproducing every size literally makes the fixed chrome
+     * (92 + 228 rail/sidebar, 88 + 88 headers) eat a far larger share of the
+     * screen than the design intends. The result reads as "zoomed in".
+     *
+     * So the root size tracks viewport width: 16px at the reference width and
+     * proportionally smaller below it. Every token above is in rem, and
+     * Tailwind's own spacing scale already is, so the entire UI scales as one
+     * piece and the design's proportions hold at any width.
+     *
+     * 94.5 = 1512 / 16. Capped at 16px, because past the reference width the
+     * right behaviour is more room, not bigger text. Floored at 12px for
+     * legibility — below that the layout compresses instead.
+     *
+     * The HEIGHT axis matters just as much, and scaling on width alone missed
+     * it. The artboard is 1512x982; a 1280x720 laptop is 85% of the reference
+     * width but only 73% of its height. Sized on width, the two 88px header
+     * bands and the composer keep almost their full height and the conversation
+     * is squeezed into what is left — the chrome reads as oversized and the chat
+     * as an afterthought, which is exactly what it looks like.
+     *
+     * So the scale follows whichever axis is more constrained.
+     *
+     * The divisors are NOT the raw artboard ratios. 94.5 is 1512/16 exactly, but
+     * the height term is 58 rather than 982/16 = 61.4, and the floor is 13px
+     * rather than 12: sized strictly to the artboard the UI came out smaller than
+     * the client wanted on a laptop, and the height axis was the binding
+     * constraint in every case. Tuned rather than removed — a proportional rule
+     * that is slightly generous still holds the design's proportions, whereas
+     * dropping the height term brings back the squeezed conversation it was
+     * added to fix.
+     */
+    font-size: clamp(13px, min(100vw / 94.5, 100vh / 58), 16px);
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink-900);
+  }
+
+  button,
+  [role="button"],
+  a[href],
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
