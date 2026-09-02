@@ -19,8 +19,26 @@ export async function register(): Promise<void> {
   const { assertServerEnv } = await import("@/lib/env");
 
   try {
-    assertServerEnv();
-    log("info", "server.started", { nodeEnv: process.env.NODE_ENV ?? "unknown" });
+    const result = assertServerEnv();
+
+    if (result.ok) {
+      log("info", "server.started", { nodeEnv: process.env.NODE_ENV ?? "unknown" });
+      return;
+    }
+
+    /*
+     * Development only: `assertServerEnv` throws in production, so reaching here
+     * means the app is being run without AgentCore or Azure configuration. That
+     * is the normal case when working against the scripted backend at
+     * /api/agent/mock, so it warns instead of refusing to start — but it names
+     * everything missing, so the eventual 500 from the real proxy is not a
+     * surprise.
+     */
+    log("warn", "server.started_unconfigured", {
+      nodeEnv: process.env.NODE_ENV ?? "unknown",
+      reason: result.reason,
+      note: "The real agent proxy will fail until these are set. /api/agent/mock does not need them.",
+    });
   } catch (err) {
     log("error", "server.misconfigured", {
       reason: err instanceof Error ? err.message : String(err),

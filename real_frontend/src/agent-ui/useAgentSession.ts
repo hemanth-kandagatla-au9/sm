@@ -19,6 +19,12 @@
  * `RunAgentInput.resume` exists in the protocol *and* on `runAgent()`, and
  * `agent.py` never reads it. Sending it is accepted by Pydantic, returns no
  * error, and the graph never wakes up. This is the sharpest trap here.
+ *
+ * **3. The interrupt value arrives JSON-encoded, as a string.**
+ * `dump_json_safe()` in the same package runs `json.dumps()` on any non-string
+ * interrupt value, so `event.value` is a string containing the envelope rather
+ * than the envelope. Without the parse below every card resolves as `malformed`
+ * and the whole conversation renders fallback cards.
  */
 "use client";
 
@@ -39,6 +45,31 @@ import type { Resolution } from "./types";
 
 /** The custom-event name ag-ui-langgraph uses for LangGraph interrupts. */
 const ON_INTERRUPT = "on_interrupt";
+/** The custom-event name `emit_progress()` dispatches from inside a node. */
+const ON_PROGRESS = "progress";
+
+/**
+ * Undo the encoder's JSON-encoding of the interrupt value.
+ *
+ * `dump_json_safe()` in ag-ui-langgraph runs `json.dumps()` on any non-string
+ * interrupt value, so the envelope arrives as a string containing the envelope.
+ *
+ * This lives in the transport, not in `resolveEnvelope`, because it is a quirk
+ * of *this backend's encoder* rather than of the contract. The contract layer
+ * stays protocol-pure and keeps treating a string as malformed, which is what it
+ * is once this function has had its turn.
+ *
+ * A string that does not parse is returned unchanged: `resolveEnvelope` then
+ * reports it as malformed, which is the truth.
+ */
+export function unwrapInterruptValue(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
 
 export type SessionStatus = "idle" | "running" | "waiting" | "finished" | "error";
 
@@ -54,6 +85,23 @@ export interface AgentSession {
   respond: (value: string, label?: string) => void;
   status: SessionStatus;
   error: string | null;
+  /**
+   * The most recent mid-node status message, e.g. "Fetching Jira ticket
+   * AAZM-4668…". Null when nothing has been reported for the run in flight, or
+   * once the graph pauses again and the message is no longer current.
+   *
+   * Without this, the longest steps in the flow look like the app has frozen.
+   */
+  progress: string | null;
+  /**
+   * The draft as the agent writes it, token by token.
+   *
+   * `node_6` generates the CR draft with a plain LLM call rather than structured
+   * output, so the package relays it as TEXT_MESSAGE_START/CONTENT/END. Null
+   * before the stream begins and once the run pauses, because the finished
+   * draft then arrives as a normal envelope.
+   */
+  draftStream: string | null;
   /** Begin the conversation. Safe to call twice; the second is ignored. */
   start: () => void;
   /** Drop all local state, clear storage, and start over on a fresh thread. */
@@ -100,6 +148,13 @@ export function useAgentSession({
    */
   const [interruptValue, setInterruptValue] = useState<unknown>(null);
   const [stateComponent, setStateComponent] = useState<unknown>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [draftStream, setDraftStream] = useState<string | null>(null);
+  /**
+   * Which TEXT_MESSAGE_* stream `draftStream` belongs to, so a second stream
+   * cannot interleave its tokens into the first one's text.
+   */
+  const streamingMessageId = useRef<string | null>(null);
 
   const agent = useMemo(
     () => (threadId ? new HttpAgent({ url, agentId: "cr-co", threadId }) : null),
@@ -140,12 +195,42 @@ export function useAgentSession({
 
     const sub = agent.subscribe({
       onCustomEvent({ event }) {
+        if (event.name === ON_PROGRESS) {
+          const value = event.value as { message?: unknown } | undefined;
+          if (typeof value?.message === "string") setProgress(value.message);
+          return;
+        }
+
         if (event.name !== ON_INTERRUPT) return;
-        // The graph is blocked. `event.value` is the ui_component envelope.
-        setInterruptValue(event.value);
-        interruptRef.current = event.value;
+
+        // The graph is blocked. `event.value` is the ui_component envelope,
+        // JSON-encoded by the backend's encoder — see `unwrapInterruptValue`.
+        const value = unwrapInterruptValue(event.value);
+
+        setInterruptValue(value);
+        interruptRef.current = value;
         setStatus("waiting");
-        record(event.value);
+        record(value);
+
+        // The card has arrived, so the progress message describes work that has
+        // already finished. It must not linger underneath the next question.
+        setProgress(null);
+        setDraftStream(null);
+        streamingMessageId.current = null;
+      },
+
+      onTextMessageStartEvent({ event }) {
+        streamingMessageId.current = event.messageId;
+        setDraftStream("");
+      },
+
+      onTextMessageContentEvent({ event }) {
+        if (event.messageId !== streamingMessageId.current) return;
+        setDraftStream((prev) => (prev ?? "") + event.delta);
+      },
+
+      onTextMessageEndEvent({ event }) {
+        if (event.messageId === streamingMessageId.current) streamingMessageId.current = null;
       },
 
       /**
@@ -200,6 +285,9 @@ export function useAgentSession({
       // because a pending interrupt beats state.
       setInterruptValue(null);
       interruptRef.current = null;
+      setProgress(null);
+      setDraftStream(null);
+      streamingMessageId.current = null;
 
       try {
         await agent.runAgent(
@@ -248,6 +336,9 @@ export function useAgentSession({
     setStateComponent(null);
     setError(null);
     setStatus("idle");
+    setProgress(null);
+    setDraftStream(null);
+    streamingMessageId.current = null;
     resetTranscript();
   }, []);
 
@@ -274,5 +365,18 @@ export function useAgentSession({
     if (autoStart) start();
   }, [autoStart, start]);
 
-  return { turns, resolution, respond, status, error, start, reset, restart, threadId, hydrated };
+  return {
+    turns,
+    resolution,
+    respond,
+    status,
+    error,
+    progress,
+    draftStream,
+    start,
+    reset,
+    restart,
+    threadId,
+    hydrated,
+  };
 }

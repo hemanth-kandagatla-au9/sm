@@ -1483,3 +1483,136 @@ npm run verify    typecheck ✓  lint ✓  check:tokens ✓  check:contract ✓
 tests             73 passing across 4 files
 routes            /api/ready added; 11 routes total
 ```
+
+---
+
+## Step 10 — The backend is AgentCore, not `agui_server.py`
+
+**Goal:** talk to the runtime the agent is actually deployed on.
+
+Everything above the transport is unchanged. The runtime container speaks AG-UI:
+the same `RunAgentInput` goes in and the same SSE events come out, so the
+contract layer, the registry, all eight cards and the transcript were untouched
+by this step. Only the wire underneath moved.
+
+### What was actually wrong
+
+This was found by auditing the reference implementation, which had already been
+cut over. Three of its differences were not stylistic.
+
+**1. The interrupt value is JSON-encoded.** `dump_json_safe()` in
+`ag-ui-langgraph` runs `json.dumps()` on any non-string interrupt value, so
+`event.value` is a *string containing* the envelope rather than the envelope.
+
+This was the highest-consequence finding in the whole project. Without the
+unwrap, `resolveEnvelope` classifies every card as `malformed` and the user sees
+fallback cards from the first screen to the last. And it is invisible in
+development, because the scripted mock sent the object — which is what the
+protocol says it should send.
+
+The mock now JSON-encodes it too. A mock that is more correct than the backend
+tests nothing.
+
+**2. The lookups no longer exist as REST endpoints.** AgentCore's data plane
+exposes exactly one route to the outside world, `POST /invocations`. Platforms,
+target systems, templates and Jira now ride the same call as a
+`forwardedProps.lookup` payload, short-circuited by the runtime before LangGraph
+is touched.
+
+`/api/lookup/[resource]` was deleted. The allow-list reasoning behind it was
+sound and the tests were good, but the thing it protected no longer exists: there
+is no second host to reach and no path to traverse. `apiGet` keeps its old
+`GET /api/…?query` call shape and translates, so the two call sites did not
+change — a deliberate seam, in case the lookups ever get endpoints again.
+
+**3. Two events we were ignoring.** `progress` carries mid-node status such as
+"Fetching Jira ticket AAZM-4668…", and the draft is streamed token by token as
+`TEXT_MESSAGE_*` because `node_6` uses a plain LLM call rather than structured
+output. Without them the longest steps in the flow look like the app has frozen.
+
+### Why there is no AWS SDK
+
+The runtime is configured with a **JWT/OAuth inbound authorizer**, not the IAM
+(SigV4) default. AWS SDKs sign with SigV4 only, so they cannot make this call at
+all. The documented OAuth path is a plain HTTPS POST to the data-plane URL with
+`Authorization: Bearer <token>`, which is why this app has no `@aws-sdk/*`
+dependency and never will while the authorizer stays as it is.
+
+The region and the qualifier are parsed out of the endpoint ARN rather than
+configured separately. Two sources for one fact is how they end up disagreeing.
+
+### Three things fixed while porting the token flow
+
+The reference implementation's token cache worked and had three gaps worth
+closing, all of which only bite under load or over time.
+
+| | |
+|---|---|
+| **No single flight** | Every concurrent cold request minted its own token. A page opening with parallel lookups meant several token requests for one page load, against an endpoint that rate-limits. The in-flight promise is now shared. |
+| **No invalidation** | A token Azure considers valid can still be refused by the runtime — a rotated secret, a reconfigured authorizer. With no way to drop the cache the process serves 401s until someone restarts it. The proxy now clears it and retries **exactly once**. |
+| **No timeout** | A hung identity provider stalled every agent request behind it. Ten seconds. |
+
+**A persistent 401 is reported to the browser as 502, not 401.** It means *our*
+credentials are unacceptable to the runtime, which is a server-side fault.
+Passing 401 through would tell the browser the *user* is unauthenticated, and in
+a host application that wraps this one, that is what triggers a login redirect —
+bouncing a user to a sign-in page to fix a misconfigured client secret.
+
+### Why boot validation became advisory in development
+
+`instrumentation.ts` still refuses to start a **production** process with
+incomplete configuration. In development it warns and lists everything missing.
+
+The reason is the scripted backend. `/api/agent/mock` needs no AWS or Azure
+configuration at all, and it is how the flow is normally worked on. Requiring
+production credentials before anyone can look at a card would mean handing a
+client secret to everyone who touches the UI, which is a worse security outcome
+than the one the strict check was protecting.
+
+The warning names every missing variable, so the eventual 500 from the real proxy
+is never a surprise. Verified: a development boot with no configuration logs
+`server.started_unconfigured` and lists all four, and the real proxy answers with
+the same list rather than a generic failure.
+
+### What the browser is told
+
+Nothing about the topology. Not the ARN, not the region, not the identity
+provider. The `x-amzn-requestid` header is forwarded so a browser network entry
+can be correlated with an AWS-side trace, and that is all. Errors carry a
+correlation id and a generic message; the runtime ARN, the Azure tenant and the
+provider's own error text go to the log.
+
+The client secret is never logged, never serialised and never returned. The
+`server-only` guard on `lib/env.ts` matters more now than it did: the accident
+that would leak it is one careless import away in a codebase without it.
+
+### Verified, without contacting AWS or Azure
+
+Every test stubs `fetch`. Nothing in this repository has ever contacted
+`bedrock-agentcore.amazonaws.com` or `login.microsoftonline.com`; what is
+asserted is the request the route *builds*.
+
+```
+invocation URL     built from the ARN, ARN url-encoded, region from the ARN,
+                   qualifier split off correctly
+token              minted once, reused across requests, once for three
+                   concurrent cold requests, re-minted after a 401
+401 handling       retried exactly once, then 502 — never a loop
+session id         derived from threadId, padded to 33 chars, stable across
+                   turns, valid even when the body is malformed
+headers upstream   exactly five; the browser's own Authorization is discarded
+content type       forwarded verbatim, so JSON lookups and SSE share one route
+secrets            absent from every error body
+readiness          mints a token, never invokes the runtime
+interrupt encoding parses back to a renderable card; a non-JSON string still
+                   reports malformed; a bad version still reports the version
+```
+
+96 tests, all six gates green.
+
+### Still open
+
+`npm run contract:pull` fetches `/api/ui-contract` from a running
+`agui_server.py`, which is now only a developer dependency for refreshing the
+contract snapshot. If AgentCore is the only deployment target, that script needs
+a new source. Recorded in `docs/GAPS.md`.

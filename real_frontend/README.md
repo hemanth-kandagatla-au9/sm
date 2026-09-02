@@ -39,31 +39,24 @@ npm run dev                    # http://localhost:3000
 That runs against the **scripted backend** — no Python, no SolMan, no network.
 The conversation is real; only the graph is simulated.
 
-To talk to the real agent, set this in `.env.local` and restart:
+To talk to the real agent, set `NEXT_PUBLIC_AGENT_PATH=/api/agent` in
+`.env.local`, fill in the AgentCore and Azure values below, and restart.
 
-```bash
-NEXT_PUBLIC_AGENT_PATH=/api/agent
-```
-
-then start the backend:
-
-```bash
-. ./set_env.ps1 ; python agui_server.py      # Windows
-source set_env.sh && python agui_server.py   # Linux / macOS
-```
-
-Two processes, not three. There is no CopilotKit runtime bridge — this app speaks
-AG-UI directly.
+There is no local backend process to start: the agent runs on **AWS Bedrock
+AgentCore**, and this app calls its data-plane endpoint directly. There is no
+CopilotKit bridge either — it speaks AG-UI natively.
 
 ### Environment
 
 | Variable | Purpose |
 |---|---|
-| `AGUI_BACKEND_URL` | AG-UI event stream, reachable **from the Next server**. Server-only. |
-| `AGUI_API_BASE` | Host for the REST lookups (platforms, target systems, Jira). Server-only. |
+| `AGENTCORE_RUNTIME_ENDPOINT_ARN` | The combined runtime + endpoint ARN. The region and qualifier are parsed out of it. Server-only. |
+| `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` | Client-credentials config for the bearer token the runtime's JWT authorizer expects. **Server-only, and the secret is a real secret.** |
+| `AZURE_TOKEN_SCOPE` | Optional. Defaults to `api://<client id>/.default`. |
 | `NEXT_PUBLIC_AGENT_PATH` | Where the browser posts. Defaults to the same-origin proxy `/api/agent`. |
-| `NEXT_PUBLIC_AGUI_AGENT_NAME` | Must match `LangGraphAGUIAgent(name=…)`. |
+| `NEXT_PUBLIC_AGUI_AGENT_NAME` | The agent's registered name. |
 | `APP_VERSION`, `GIT_SHA` | Build identity, reported by `/api/health`. Set by the pipeline. |
+| `AGUI_API_BASE` | `npm run contract:pull` only. Not used by the running app. |
 
 **A variable prefixed `NEXT_PUBLIC_` is compiled into the JavaScript bundle and
 is readable by anyone with the page open.** Backend hosts therefore carry no
@@ -71,8 +64,10 @@ prefix and are read only in server code — the browser is told a same-origin pa
 and never learns where the backend lives.
 
 The build requires **no** environment at all; configuration is validated at
-process start instead. A misconfigured deployment fails at boot, loudly, rather
-than on a user's first request.
+process start instead. A misconfigured **production** deployment fails at boot,
+loudly. In development it warns and lists what is missing, because the scripted
+backend needs no AWS or Azure configuration and nobody should need a production
+client secret to look at a card.
 
 ---
 
@@ -83,12 +78,12 @@ than on a user's first request.
 | `npm run dev` | development server |
 | `npm run build` | production build |
 | `npm start` | serve the production build |
-| `npm test` | Vitest, 83 tests |
+| `npm test` | Vitest, 96 tests |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `eslint --max-warnings 0` |
 | `npm run check:tokens` | asserts `globals.css` and `cn.ts` agree on type steps |
 | `npm run check:contract` | asserts the generated types still match `ui-contract.json` |
-| `npm run contract:pull` | refresh the contract snapshot from a running backend |
+| `npm run contract:pull` | refresh the contract snapshot (needs a local `agui_server.py` — see GAPS G18) |
 | `npm run contract:gen` | regenerate types + fixtures from the snapshot |
 | **`npm run verify`** | **every gate, in the order CI should run them** |
 
@@ -114,13 +109,17 @@ anyone reintroducing a module-scope read of a backend URL.
 ## Architecture
 
 ```
-        browser                    Next server                   Python
-  ┌───────────────────┐      ┌────────────────────┐      ┌──────────────────┐
-  │ shell             │      │ /api/agent   ──────┼─SSE─▶│ agui_server.py   │
-  │  └ Transcript     │◀SSE──┤ /api/lookup/[r] ───┼─────▶│  LangGraph       │
-  │      └ cards      │      │ /api/health,/ready │      │  SolMan, Jira    │
-  └───────────────────┘      └────────────────────┘      └──────────────────┘
-        same origin only            the only egress
+        browser                 Next server                AWS Bedrock AgentCore
+  ┌───────────────────┐   ┌────────────────────┐      ┌───────────────────────┐
+  │ shell             │   │ /api/agent  ───────┼─SSE─▶│ POST /invocations     │
+  │  └ Transcript     │◀──┤   + bearer token   │      │   LangGraph, SolMan   │
+  │      └ cards      │   │ /api/health,/ready │      │   Jira                │
+  └───────────────────┘   └─────────┬──────────┘      └───────────────────────┘
+        same origin only            │ client credentials
+                                    ▼
+                          ┌────────────────────┐
+                          │ Azure AD (token)   │
+                          └────────────────────┘
 ```
 
 The browser talks to **one origin**. Every backend call goes through the Next
@@ -135,7 +134,7 @@ src/cards/      the eight cards and their primitives — props in, respond() out
 src/ui/         presentational leaves: Icon, Tooltip, UserTurn
 src/shell/      the designed chrome — rail, sidebar, headers, composer, transcript
 src/lib/        env, logger, cn
-src/app/api/    server-side proxies. The browser never learns the backend host
+src/app/api/    the only egress. The browser never learns the runtime or the token
 ```
 
 Import direction is one-way, and **enforced by ESLint rather than convention**:
@@ -155,7 +154,7 @@ real coupling.
 ### How a turn works
 
 1. The graph blocks on `interrupt(ui)` and emits a **`CUSTOM` event named
-   `on_interrupt`** carrying the envelope.
+   `on_interrupt`** carrying the envelope, **JSON-encoded as a string**.
 2. `useAgentSession` — the only file that knows about AG-UI — hands it to
    `resolveEnvelope`, which validates it and decides between the interrupt and
    the agent's state.
@@ -165,8 +164,11 @@ real coupling.
    the transcript shows.
 5. The session resumes the graph via **`forwardedProps.command.resume`**.
 
-Two of those are non-obvious and cost days if missed — both are documented at the
-top of `src/agent-ui/useAgentSession.ts`, with the evidence.
+Three of those are non-obvious and cost days if missed — all are documented at
+the top of `src/agent-ui/useAgentSession.ts`, with the evidence. The third, the
+JSON-encoded interrupt, is the one that fails silently *and* invisibly: a mock
+that follows the protocol sends the object, so development works perfectly while
+every card in production renders a fallback.
 
 ### The registry is total
 
@@ -264,5 +266,6 @@ later.
 | 6 — Cards 5–8 | ✅ registry total |
 | 7 — AG-UI transport + transcript | ✅ |
 | 8 — Shell, per the Figma spec | ✅ |
-| 9 — Tests, observability | ✅ 83 tests |
+| 9 — Tests, observability | ✅ |
+| 10 — AgentCore transport, Azure AD token | ✅ 96 tests |
 | Container, pipeline, deployment | owned by DevOps |

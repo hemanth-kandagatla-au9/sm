@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
   // ── Reconnect: exactly what agent.py's short-circuit path emits ───────────
   if (scenario === "reconnect") {
-    chunks.push(sse({ type: "CUSTOM", name: "on_interrupt", value: ui }));
+    chunks.push(sse({ type: "CUSTOM", name: "on_interrupt", value: JSON.stringify(ui) }));
     chunks.push(sse({ type: "RUN_FINISHED", threadId, runId }));
     return stream(chunks);
   }
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Normal interrupt turn ─────────────────────────────────────────────────
-  chunks.push(sse({ type: "CUSTOM", name: "on_interrupt", value: ui }));
+  chunks.push(sse({ type: "CUSTOM", name: "on_interrupt", value: JSON.stringify(ui) }));
   chunks.push(sse({ type: "STATE_SNAPSHOT", snapshot: agentState(ui, node) }));
   chunks.push(sse({ type: "MESSAGES_SNAPSHOT", messages: [] }));
   chunks.push(sse({ type: "STEP_FINISHED", stepName: node }));

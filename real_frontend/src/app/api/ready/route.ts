@@ -1,63 +1,56 @@
 /**
  * GET /api/ready — readiness.
  *
- * "Should this instance receive traffic?" — which is a different question from
+ * "Should this instance receive traffic?" — a different question from
  * `/api/health`'s "is this process alive?", and the difference matters
  * operationally.
  *
  * A **liveness** probe that checks dependencies makes an orchestrator restart
- * healthy instances during someone else's outage: a brief backend blip becomes a
- * fleet-wide restart loop, and recovery takes longer than the original fault.
+ * healthy instances during someone else's outage: a brief upstream blip becomes
+ * a fleet-wide restart loop, and recovery takes longer than the original fault.
  * So `/api/health` checks nothing but itself.
  *
  * A **readiness** probe is where a dependency check belongs. Failing it takes an
  * instance out of the load-balancer rotation without killing it, and it returns
- * on its own when the dependency recovers. Nothing restarts, nothing loses its
- * warm state, and traffic stops going somewhere that cannot serve it.
+ * on its own when the dependency recovers.
  *
- * The check is a HEAD-like probe of the agent host, not a graph run: readiness
- * must be cheap enough to answer every few seconds, and must not wake an agent.
+ * ── What it checks, and what it deliberately does not ───────────────────────
+ * It obtains an Azure AD token, which proves configuration is valid and the
+ * identity provider is reachable. It does **not** invoke the AgentCore runtime.
+ *
+ * Invoking the agent would start a graph run, bill a model call and create a
+ * checkpoint, every few seconds, forever. A readiness probe that costs money and
+ * mutates state is worse than no readiness probe. The token is the cheapest
+ * signal that carries real information, and it is cached, so a probe every few
+ * seconds mints nothing after the first.
  */
+import { getAccessToken } from "@/lib/agentcore-token";
 import { getServerEnv } from "@/lib/env";
 import { log, requestIdFrom } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/**
- * Deliberately short. A readiness probe that takes longer than the interval
- * between probes stacks up, and the pile-up looks like the outage it was meant
- * to detect.
- */
-const PROBE_TIMEOUT_MS = 3_000;
-
 export async function GET(req: Request): Promise<Response> {
   const requestId = requestIdFrom(req.headers);
   const startedAt = Date.now();
 
-  let apiBase: string;
   try {
-    apiBase = getServerEnv().aguiApiBase;
+    // Reading the env first separates "misconfigured" from "provider is down",
+    // which are different operational problems with different owners.
+    getServerEnv();
   } catch {
-    // Unreachable while `instrumentation.ts` validates at boot — a misconfigured
-    // process never starts. Handled anyway: readiness must answer, always.
     return notReady("configuration", requestId, Date.now() - startedAt);
   }
 
   try {
-    const res = await fetch(new URL("/api/platforms", apiBase), {
-      // The cheapest endpoint the backend exposes, used as a liveness signal for
-      // it rather than for its contents.
-      method: "GET",
-      headers: { accept: "application/json", "x-request-id": requestId },
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-      cache: "no-store",
-    });
-
-    if (!res.ok) return notReady(`upstream ${res.status}`, requestId, Date.now() - startedAt);
-
+    await getAccessToken(requestId);
     return Response.json(
-      { status: "ready", dependencies: { agent: "ok" }, checkedInMs: Date.now() - startedAt },
+      {
+        status: "ready",
+        dependencies: { identityProvider: "ok" },
+        checkedInMs: Date.now() - startedAt,
+      },
       { headers: { "cache-control": "no-store", "x-request-id": requestId } },
     );
   } catch (err) {
@@ -76,7 +69,7 @@ function notReady(reason: string, requestId: string, tookMs: number): Response {
     // The reason stays out of the body: this endpoint is reachable by anything
     // that can route to the pod, and "which dependency is down" is not a fact to
     // publish. The log line has it.
-    { status: "not_ready", dependencies: { agent: "unavailable" }, requestId },
+    { status: "not_ready", dependencies: { identityProvider: "unavailable" }, requestId },
     { status: 503, headers: { "cache-control": "no-store", "x-request-id": requestId } },
   );
 }

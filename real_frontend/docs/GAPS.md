@@ -31,6 +31,8 @@ in the code are deliberate accommodations of a gap below, and each one says so.
 | G13 failed submission treatment | open | inferred from the success frame |
 | G14 editor / compare frames | open | built from existing primitives |
 | G17 CR-before-Template order | open, deliberate | differs from Figma on request |
+| G18 `contract:pull` needs agui_server.py | open | contract cannot be refreshed from AgentCore |
+| G19 no browser-level auth | open | the app itself is unauthenticated |
 
 ---
 
@@ -145,6 +147,36 @@ is the fallback.
 Recorded so the next person comparing this card against Figma finds an
 explanation rather than assuming a mistake. Worth folding back into the design
 file.
+
+### G18 — `contract:pull` still needs a local `agui_server.py`
+**Status:** open · **Impact:** low, until the contract changes
+
+`npm run contract:pull` fetches `/api/ui-contract` from
+`AGUI_API_BASE`, which was the standalone AG-UI host. The running app no longer
+talks to it: AgentCore is the only runtime, and its data plane exposes only
+`POST /invocations`.
+
+So the contract snapshot can only be refreshed by someone who can still run the
+backend locally. Everything else about the contract pipeline is unaffected —
+`contract:gen` and `check:contract` work from the committed snapshot.
+
+**Resolve by:** exposing the contract document through a `forwardedProps.lookup`
+type, the same way the four data lookups now work, and pointing the script at
+`/api/agent`.
+
+### G19 — The application itself is unauthenticated
+**Status:** open · **Impact:** high before any real deployment
+
+The Azure AD credentials authenticate **this server to AgentCore**. They say
+nothing about who is using the browser. Every route is still open to anyone who
+can reach the host.
+
+This is a different gap from the one the AgentCore work closed, and it is easy to
+mistake one for the other now that the word "Azure" appears in the codebase.
+
+**Resolve by:** MSAL in front of the app, matching `_ref/platform-fe`, plus a
+session check in `src/proxy.ts`. The seam is narrow: all backend traffic already
+passes through `src/app/api/agent/route.ts`.
 
 ### G15 — The backend keeps no envelope history per thread
 **Status:** blocked on backend · **Impact:** medium
